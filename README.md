@@ -47,4 +47,4 @@ The resulting DICOM files are named according to the following convention:
 
 Also outputs a linklog.txt containing "studyID\tAccessionNumber\n" in the same folder as the script.
 
-This script is provided "as is" under the MIT license. Please see Licence file for further details.
+This script is provided "as is" under the MIT license. If you find it useful for your project or publication, please cite it. Please see Licence file for further details.
