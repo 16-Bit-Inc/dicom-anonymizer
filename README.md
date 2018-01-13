@@ -9,7 +9,7 @@ Usage:
 python dcmanonymizer.py -d <input dicom directory> -o <desired output directory>
 ```
 
-Rather than delete/replace patient health information in the original DICOM file, this script copies/replaces only the data that would be useful for data analysis and machine learning while still fulfilling requirements of the necessary tags for valid DICOM format. These include:
+Rather than delete/replace patient health information in the original DICOM file, this script copies/replaces only the data that would be useful for data analysis and machine learning and creates a new DICOM file while still fulfilling requirements of the necessary tags for valid DICOM format. These include:
 
 Modality (copied if present, otherwise blank space)<br />
 StudyDate (copied if present, otherwise blank space)<br />
