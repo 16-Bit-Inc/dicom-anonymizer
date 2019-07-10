@@ -1,50 +1,43 @@
 # README #
 
-Takes an input directory and creates new deidentified files for each DICOM file encountered in the directory, including subdirectories.
+Takes an input directory, and creates new de-identified files for each DICOM file encountered in the directory, including subdirectories.
 
-Dependencies: pydicom, python 2.7
+Please see the pdf file Summary of the Medical Imaging Data Anonymization Program.pdf for a non-technical overview of dcmAnonymizerV02.py's functionality.
+For any questions and comments regarding usage and technical details,
+please send correspondences to *Daniel Eftekhari* at [daniel@16bit.ai](daniel@16bit.ai)
 
-Usage: 
+The multiprocessing version of the program, dcmAnonymizerV02MP.py makes use of multiprocessing to speed up the anonymization process.
+
+Software requirements:
+1. Anaconda Distribution Python version 2.7.*
+Download Anaconda at [https://www.anaconda.com/download/](https://www.anaconda.com/download/)
+2. After installing Anaconda, add /PATH/TO/ANACONDA and /PATH/TO/ANACONDA/SCRIPTS to your system PATH.
+3. Please make sure pydicom has been installed prior to running this program.
+This can be done by entering `conda install -c conda-forge pydicom` in the command line/prompt.
+4. There are several image handler packages which may or may not be needed depending on your dicom transfer syntaxes.
+These packages are imported by default. Only gdcm and jpeg_ls need to be installed manually (assuming Anaconda Distribution is being used).
+This can be done by running `conda install -c conda-forge gdcm` to install gdcm, and cloning the CharPyLs repository from https://github.com/Who8MyLunch/CharPyLS and running `pip install .` from inside the CharPyLs directory.
+See [info on data handlers](https://pydicom.github.io/pydicom/dev/image_data_handlers.html) for specifications on which handlers may be needed
+for your dicom files.
+
+Usage:
 ```
-python dcmanonymizer.py -d <input dicom directory> -o <desired output directory>
+python dcmAnonymizerV02.py -d <input directory> -o <output directory> -l <linking log directory> -s <Space available in output directory (in GB)> -g <s/m/n>
 ```
 
-Rather than delete/replace patient health information in the original DICOM file, this script copies/replaces only the data that would be useful for data analysis and machine learning and creates a new DICOM file while still fulfilling requirements of the necessary tags for valid DICOM format. These include:
+Program input:
+1. Top-level directory containing all dicoms, either directly within the directory, or in subdirectories.
 
-Modality (copied if present, otherwise blank space)<br />
-StudyDate (copied if present, otherwise blank space)<br />
-StudyTime (copied if present, otherwise blank space)<br />
-StudyInstanceUID ('0.0')<br />
-SeriesInstanceUID ('0.0')<br />
-SOPInstanceUID ('0.0')<br />
-SOPClassUID (copied if present, otherwise blank space)<br />
-SecondaryCaptureDeviceManufctur ('Python 2.7.3') <br />
-<br />
-AccessionNumber (assigned)<br />
-PatientID (assigned - patients with same MRN in original DICOMS will have same assigned PatientID)<br />
-StudyID (assigned, same as AccessionNumber)<br />
-PatientName (replaced with blank space)<br />
-PatientBirthDate (replaced with 00000000)<br />
-PatientAge (calculated from study date and date of birth)<br />
-PatientSex (copied if present, otherwise blank space)<br />
-StudyDescription (copied if present, otherwise blank space)<br />
-SeriesDescription (copied if present, otherwise blank space)<br />
-ViewPosition (copied if present, otherwise blank space)<br />
-InstanceNumber (copied if present, otherwise blank space)<br />
-SeriesNumber (copied if present, otherwise blank space)<br />
-SamplesPerPixel (copied if present, otherwise blank space)<br />
-PhotometricInterpretation (copied if present, otherwise blank space)<br />
-PixelRepresentation (copied if present, otherwise blank space)<br />
-HighBit (copied if present, otherwise blank space)<br />
-BitsStored (copied if present, otherwise blank space)<br />
-BitsAllocated (copied if present, otherwise blank space)<br />
-Columns (copied if present, otherwise blank space)<br />
-Rows (copied if present, otherwise blank space)<br />
-PixelData (copied if present, otherwise blank space)<br />
+Notes:
+1. Please make sure that the linking log folder path already exists on the local drive.
+For the same dataset, this path must be consistent across different runs of the program.
+This path should not be the path of a portable external drive.
+2. If the dataset is larger than the specified space, run the program as many times as needed, each time specifying the space available in the output directory.
 
-The resulting DICOM files are named according to the following convention:
-<i>studyID_SeriesNumber_InstanceNumber_Modality_StudyDescription_SeriesDescription_ViewPosition.dcm</i>
+Program output:
+1. For each dicom in the input directory (recursive for subdirectories), if it doesn't already exist, the program writes an anonymized version to the desired output directory.
+The output (anonymized) dicoms are grouped into subfolders by studyID/MRN, or are not grouped into subfolders at all.
+2. Generates or updates existing link log files (the underlying data structure is a hash table). These are used to determine whether a dicom has already been anonymized or not.
 
-Also outputs a linklog.txt containing "studyID\tAccessionNumber\n" in the same folder as the script.
 
 This script is provided "as is" under the MIT license. If you find it useful for your project or publication, please cite it. Please see Licence file for further details.
