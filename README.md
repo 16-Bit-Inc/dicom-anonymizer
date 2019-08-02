@@ -4,7 +4,7 @@ Takes an input directory, and creates new de-identified files for each DICOM fil
 
 Please see the pdf file Summary of the Medical Imaging Data Anonymization Program.pdf for a non-technical overview of dcmAnonymizerV02.py's functionality.
 For any questions and comments regarding usage and technical details,
-please send correspondences to *Daniel Eftekhari* at [daniel@16bit.ai](daniel@16bit.ai)
+please send correspondences to *Daniel Eftekhari* at daniel@16bit.ai
 
 The multiprocessing version of the program, dcmAnonymizerV02MP.py makes use of multiprocessing to speed up the anonymization process.
 
@@ -17,7 +17,7 @@ This can be done by entering `conda install -c conda-forge pydicom` in the comma
 4. There are several image handler packages which may or may not be needed depending on your dicom transfer syntaxes.
 These packages are imported by default. Only gdcm and jpeg_ls need to be installed manually (assuming Anaconda Distribution is being used).
 This can be done by running `conda install -c conda-forge gdcm` to install gdcm, and cloning the CharPyLs repository from https://github.com/Who8MyLunch/CharPyLS and running `pip install .` from inside the CharPyLs directory.
-See [info on data handlers](https://pydicom.github.io/pydicom/dev/image_data_handlers.html) for specifications on which handlers may be needed
+See [info on data handlers](https://pydicom.github.io/pydicom/stable/image_data_handlers.html) for specifications on which handlers may be needed
 for your dicom files.
 
 Usage:
