@@ -22,7 +22,6 @@ try:
 except ImportError:
     print('Python package gdcm', IMPORT_ERROR_MESSAGE)
 
-import pydicom
 from pydicom.dataset import Dataset, FileDataset
 
 from pydicom.pixel_data_handlers.util import pixel_dtype, reshape_pixel_array
@@ -51,7 +50,6 @@ def write_dicom(ods, anon_values, out_dir, grouping):
     ds.SOPClassUID = 'Secondary Capture Image Storage'
     ds.SecondaryCaptureDeviceManufctur = 'Python 2.7'
 
-    # These are the necessary imaging components of the FileDataset object.
     ds.AccessionNumber = str(anon_values['accession'])
     ds.PatientID = str(anon_values['mrn'])
     ds.StudyID = str(anon_values['studyID'])

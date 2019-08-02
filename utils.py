@@ -21,7 +21,7 @@ def save_json(data, file_name):
 
 
 def load_link_log(logger, link_log_path, file_name, message):
-    if link_log_path is not None and os.path.exists(os.path.join(link_log_path, file_name)):
+    if (link_log_path is not None) and os.path.exists(os.path.join(link_log_path, file_name)):
         link_dict = load_json(os.path.join(link_log_path, file_name))
     else:
         link_dict = {}
@@ -60,10 +60,10 @@ def calculate_space(user_space, out_dir):
     # (Difference between "metric system" (powers of 10) vs "computer byte system" (powers of 2).)
     # This factor is 1.024**3 at GB scale (1.024 for every 10**3 "metric" bytes).
     # TODO: Verify if this precautionary measure is absolutely necessary.
-    space /= 1.024**3
+    space /= (1.024**3)
 
     # Further precautionary reduction, for example in the case where a dedicated segment of drive is preserved.
-    space -= 10**9
+    space -= (10**9)
 
     return space
 

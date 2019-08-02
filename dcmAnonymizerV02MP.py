@@ -56,32 +56,12 @@ import psutil
 import time
 import datetime
 
-# Image handlers
-IMPORT_ERROR_MESSAGE = 'could not be imported. This may cause issues, depending on the transfer syntaxes of the dicom files.'
-try:
-    import numpy
-    import numpy as np
-except ImportError:
-    print('Python package numpy', IMPORT_ERROR_MESSAGE)
-try:
-    import PIL
-except ImportError:
-    print('Python package PIL', IMPORT_ERROR_MESSAGE)
-try:
-    import jpeg_ls
-except ImportError:
-    print('Python package jpeg_ls', IMPORT_ERROR_MESSAGE)
-try:
-    import gdcm
-except ImportError:
-    print('Python package gdcm', IMPORT_ERROR_MESSAGE)
-
-import pydicom
-
 import multiprocessing as mp
 
 from constructDicom import write_dicom
 from utils import load_json, save_json, load_link_log, calculate_space, find_max
+
+import pydicom
 
 DICOM_FIELDS = ('PatientID', 'AccessionNumber', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID')
 IDENTIFIER_FIELDS = ('mrn', 'accession', 'studyID', 'seriesID', 'sopID')
@@ -105,8 +85,8 @@ def parse_args():
     return args
 
 
-def get_dicoms_mp(partition_queue, root, dirs, files):
-    partition_queue[root] = {'queue': [], 'size': 0.0}
+def get_dicoms_mp(partition, root, dirs, files):
+    partition[root] = {'queue': [], 'size': 0.0}
     for name in files:
         is_dicom = False
         if name.endswith((".dcm", ".dicom")):
@@ -118,12 +98,12 @@ def get_dicoms_mp(partition_queue, root, dirs, files):
             except:
                 pass
         if is_dicom:
-            content = partition_queue[root]
+            content = partition[root]
 
             content['queue'].append(os.path.join(root, name))
             content['size'] += os.stat(os.path.join(root, name)).st_size
 
-            partition_queue[root] = content
+            partition[root] = content
 
 
 def get_dicoms(dcm_directory):
@@ -133,32 +113,32 @@ def get_dicoms(dcm_directory):
         logger.info("Getting dicoms in {}".format(dcm_directory))
 
         manager = mp.Manager()
-        partition_queue = manager.dict()
+        partition = manager.dict()
 
         pool = mp.Pool(USE_CORES)
 
         for root, dirs, files in os.walk(dcm_directory):
-            pool.apply_async(get_dicoms_mp, args=(partition_queue, root, dirs, files))
+            pool.apply_async(get_dicoms_mp, args=(partition, root, dirs, files))
         pool.close()
         pool.join()
 
-        partition_queue = partition_queue.copy()
+        partition = partition.copy()
 
-        return partition_queue
+        return partition
     else:
         print("DICOM directory does not exist - ensure path exists")
         logger.error("DICOM directory does not exist - ensure path exists")
         return None
 
 
-def anonymize_dicoms_mp(link_dict, partition_queue, directory, max_values, out_dir, grouping, space):
+def anonymize_dicoms_mp(link_dict, partition, directory, max_values, out_dir, grouping, space):
     # Check space limitation. Terminate program if space left is too small.
-    if partition_queue[directory]['size'] > space.value or float(psutil.disk_usage(out_dir).free) < (50*10**6):
+    if partition[directory]['size'] > space.value or float(psutil.disk_usage(out_dir).free) < (50*10**6):
         print('Ran out of space to write files.')
         logger.warning('Ran out of space to write files.')
         return True
 
-    for f in partition_queue[directory]['queue']:
+    for f in partition[directory]['queue']:
         ds = pydicom.dcmread(f)
 
         # Check if requisite tags exist
@@ -209,10 +189,10 @@ def anonymize_dicoms_mp(link_dict, partition_queue, directory, max_values, out_d
                                    .format(str(f), str(error), str(exc_type), str(exc_tb.tb_lineno), str(values), str(anon_values)))
 
     # Account for reduced disk space due to current directory's dicoms.
-    space.value -= partition_queue[directory]['size']
+    space.value -= partition[directory]['size']
 
     # Remove that directory's dicoms from further consideration.
-    del partition_queue[directory]
+    del partition[directory]
 
     return False
 
@@ -233,9 +213,9 @@ class Anonymize():
         self.pool.join()
 
 
-def anonymize_dicoms(link_log_path, space, partition_queue, out_dir, grouping, link_dict):
+def anonymize_dicoms(link_log_path, space, partition, out_dir, grouping, link_dict):
     # Directories containing dicoms to be anonymized
-    directories = partition_queue.keys()
+    directories = partition.keys()
 
     # Determine where the incrementer stopped in previous runs of the program.
     # Important for creating new identifiers for newly encountered cases.
@@ -248,23 +228,23 @@ def anonymize_dicoms(link_log_path, space, partition_queue, out_dir, grouping, l
     space = manager.Value('d', space)
     link_dict = manager.dict(link_dict)
     max_values = manager.dict(max_values)
-    partition_queue = manager.dict(partition_queue)
+    partition = manager.dict(partition)
 
     # Run anonymization
     anonymizer = Anonymize()
     for directory in directories:
-        anonymizer.execute(anonymize_dicoms_mp, args=(link_dict, partition_queue, directory, max_values, out_dir, grouping, space))
+        anonymizer.execute(anonymize_dicoms_mp, args=(link_dict, partition, directory, max_values, out_dir, grouping, space))
     anonymizer.wait()
 
     link_dict = link_dict.copy()
-    partition_queue = partition_queue.copy()
+    partition = partition.copy()
 
     # Save cache of already-visited patients.
     for i_iter in range(len(LINK_LOG_FIELDS)):
          save_json(link_dict[LINK_LOG_FIELDS[i_iter]], os.path.join(link_log_path, "{}.json".format(LINK_LOG_FIELDS[i_iter])))
 
-    # Update partition_queue.
-    save_json(partition_queue, os.path.join(link_log_path, 'partition_queue.json'))
+    # Update partition.
+    save_json(partition, os.path.join(link_log_path, 'partition.json'))
 
 
 if __name__ == "__main__":
@@ -304,13 +284,13 @@ if __name__ == "__main__":
     print('Total number of cores {} available. Using {} cores.'.format(N_CORES, USE_CORES))
     logger.info('Total number of cores {} available. Using {} cores.'.format(N_CORES, USE_CORES))
 
-    # Load partition_queue, if it exists.
+    # Load partition, if it exists.
     try:
-        partition_queue = load_json(os.path.join(link_log, 'partition_queue.json'))
+        partition = load_json(os.path.join(link_log, 'partition.json'))
     except:
-        print('Partition queue does not exist. A new one will be created.')
-        logger.info('Partition queue does not exist. A new one will be created.')
-        partition_queue = {}
+        print('Partition does not exist. A new one will be created.')
+        logger.info('Partition does not exist. A new one will be created.')
+        partition = {}
 
     # Load cache of cases already analyzed, otherwise instantiate new caches
     link_dict = {}
@@ -319,15 +299,15 @@ if __name__ == "__main__":
 
     # Load and anonymize dicoms.
     try:
-        if not partition_queue:
+        if not partition:
             start_time_get_dicoms = time.time()
-            partition_queue = get_dicoms(dcm_dir)
+            partition = get_dicoms(dcm_dir)
             end_time_get_dicoms = time.time()
             print("--- Process get_dicoms took %s seconds to execute ---" % round((end_time_get_dicoms - start_time_get_dicoms), 2))
-            save_json(partition_queue, os.path.join(link_log, 'partition_queue.json'))
+            save_json(partition, os.path.join(link_log, 'partition.json'))
 
         start_time_anonymize_dicoms = time.time()
-        anonymize_dicoms(link_log, space, partition_queue, out_dir, grouping, link_dict)
+        anonymize_dicoms(link_log, space, partition, out_dir, grouping, link_dict)
         end_time_anonymize_dicoms = time.time()
         print("--- Process anonymize_dicoms took %s seconds to execute ---" % round((end_time_anonymize_dicoms - start_time_anonymize_dicoms), 2))
     except ValueError:
