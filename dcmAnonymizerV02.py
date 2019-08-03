@@ -52,7 +52,7 @@ import datetime
 
 import config
 import constructDicom
-from utils import load_json, save_json, load_link_log, find_max, calculate_progress
+from utils import load_json, save_json, load_link_log, find_max
 
 import pydicom
 
@@ -95,12 +95,6 @@ def get_dicoms(dcm_directory):
 
 
 def anonymize_dicoms(link_log_path, partition, out_dir, grouping, link_dict):
-    # Number of directories to analyze
-    directory_num = len(partition)
-
-    count = 0
-    start_time = time.time()
-
     # Determine where the incrementer stopped in previous runs of the program.
     # Important for creating new identifiers for newly encountered cases.
     max_values = {}
@@ -146,9 +140,9 @@ def anonymize_dicoms(link_log_path, partition, out_dir, grouping, link_dict):
                     print('mrn-accession-studyID-seriesID-sopID tuple has already been anonymized.')
                     logger.info('mrn-accession-studyID-seriesID-sopID tuple has already been anonymized.')
                 else:
-                    link_dict[LINK_LOG_FIELDS[-1]][str(dicom_tuple)] = 1
                     try:
                         constructDicom.write_dicom(ds, anon_values, out_dir, grouping)
+                        link_dict[LINK_LOG_FIELDS[-1]][str(dicom_tuple)] = 1
                     except Exception as error:
                         exc_type, exc_obj, exc_tb = sys.exc_info()
                         logger.warning('WARNING - file: {} | message: {} {} {} . This warning is for case {} with anon_values {} .'
@@ -156,10 +150,6 @@ def anonymize_dicoms(link_log_path, partition, out_dir, grouping, link_dict):
 
         # Remove directory's dicoms from further consideration.
         del partition[directory]
-
-        count += 1
-        if not count % 5:
-            calculate_progress(count, directory_num, start_time)
 
     # Save cache of already-visited patients.
     for i_iter in range(len(LINK_LOG_FIELDS)):

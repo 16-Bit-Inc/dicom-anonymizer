@@ -169,12 +169,11 @@ def anonymize_dicoms_mp(link_dict, partition, directory, max_values, out_dir, gr
                 print('mrn-accession-studyID-seriesID-sopID tuple {} has already been anonymized.'.format(str(dicom_tuple)))
                 logger.info('mrn-accession-studyID-seriesID-sopID tuple {} has already been anonymized.'.format(str(dicom_tuple)))
             else:
-                temp_link_dict_master = link_dict[LINK_LOG_FIELDS[-1]]
-                temp_link_dict_master[str(dicom_tuple)] = 1
-                link_dict[LINK_LOG_FIELDS[-1]] = temp_link_dict_master
-
                 try:
                     constructDicom.write_dicom(ds, anon_values, out_dir, grouping)
+                    temp_link_dict_master = link_dict[LINK_LOG_FIELDS[-1]]
+                    temp_link_dict_master[str(dicom_tuple)] = 1
+                    link_dict[LINK_LOG_FIELDS[-1]] = temp_link_dict_master
                 except Exception as error:
                     exc_type, exc_obj, exc_tb = sys.exc_info()
                     logger.warning('WARNING - file: {} | message: {} {} {} . This warning is for case {} with anon_values {} .'

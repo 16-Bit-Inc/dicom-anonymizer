@@ -17,12 +17,11 @@ This can be done by entering `conda install -c conda-forge pydicom` in the comma
 4. There are several image handler packages which may or may not be needed depending on your dicom transfer syntaxes.
 These packages are imported by default. Only gdcm and jpeg_ls need to be installed manually (assuming Anaconda Distribution is being used).
 This can be done by running `conda install -c conda-forge gdcm` to install gdcm, and cloning the CharPyLs repository from https://github.com/Who8MyLunch/CharPyLS and running `pip install .` from inside the CharPyLs directory.
-See [info on data handlers](https://pydicom.github.io/pydicom/stable/image_data_handlers.html) for specifications on which handlers may be needed
-for your dicom files.
+See [info on data handlers](https://pydicom.github.io/pydicom/stable/image_data_handlers.html) for specifications on which handlers may be needed for your dicom files.
 
 Usage:
 ```
-python dcmAnonymizerV02.py -d <input directory> -o <output directory> -l <linking log directory> -s <Space available in output directory (in GB)> -g <s/m/n>
+python dcmAnonymizerV02.py -d <input directory> -o <output directory> -l <linking log directory> -g <s/m/n>
 ```
 
 Program input:
@@ -31,8 +30,8 @@ Program input:
 Notes:
 1. Please make sure that the linking log folder path already exists on the local drive.
 For the same dataset, this path must be consistent across different runs of the program.
-This path should not be the path of a portable external drive.
-2. If the dataset is larger than the specified space, run the program as many times as needed, each time specifying the space available in the output directory.
+2. If the program terminates because extra disk space is needed to write dicoms to the output folder,
+run the program again as many times as needed, each time with a new output folder containing additional disk space.
 
 Program output:
 1. For each dicom in the input directory (recursive for subdirectories), if it doesn't already exist, the program writes an anonymized version to the desired output directory.

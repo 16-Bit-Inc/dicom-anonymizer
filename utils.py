@@ -2,7 +2,6 @@ from __future__ import print_function
 
 import os
 
-import time
 import datetime
 
 import json
@@ -60,9 +59,3 @@ def find_max(link_dict):
     else:
         max_value = 0
     return max_value
-
-
-def calculate_progress(count, file_num, start_time):
-    end_cycle_time = time.time()
-    time_left = (end_cycle_time - start_time)/count*(file_num - count)/60.0
-    print("---------------" + str(round((count/float(file_num))*100.0, 1)) + "% Complete (" + str(count) + "/" + str(file_num) + " | " + str(round(time_left, 1)) + " minutes remaining)----------------------")
