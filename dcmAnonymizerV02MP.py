@@ -18,13 +18,12 @@ This can be done by entering <conda install -c conda-forge pydicom> in the comma
 These packages are imported by default. Only <gdcm> and <jpeg_ls> need to be installed manually (assuming Anaconda Distribution is being used).
 This can be done by running <conda install -c conda-forge gdcm> to install gdcm>,
 and cloning the CharPyLs repository from https://github.com/Who8MyLunch/CharPyLS and running <pip install .> from inside the CharPyLs directory.
-See https://pydicom.github.io/pydicom/dev/image_data_handlers.html for specifications on which handlers may be needed
-for your dicom files.
+See https://pydicom.github.io/pydicom/stable/image_data_handlers.html for specifications on which handlers may be needed for your dicom files.
 
 Usage:
-python dcmAnonymizerV02MP.py -d <input directory> -o <output directory> -l <linking log directory> -s <Space available for output directory (in GB)> -g <s/m/n> (group into subfolders by either studyID or MRN, or do not group into subfolders at all)
-Example usage, where the output directory has 4000 GB (or 4 Terabytes) of space, and the output dicoms are grouped into subfolders by anonymized studyID:
-python dcmAnonymizerV02MP.py -d D:\16bitproject\16bit -o D:\16bitproject\16bitanon -l D:\16bitproject\16bitlog -s 4000 -g s
+python dcmAnonymizerV02MP.py -d <input directory> -o <output directory> -l <linking log directory> -g <s/m/n> (group into subfolders by either studyID or MRN, or do not group into subfolders at all)
+Example usage where the output dicoms are grouped into subfolders by anonymized studyID:
+python dcmAnonymizerV02MP.py -d ./data -o ./anondata -l ./linklog -g s
 
 Program input:
 1. Top-level directory containing all dicoms, either directly within the directory, or in subdirectories.
@@ -32,9 +31,8 @@ Program input:
 Notes:
 1. Please make sure that the linking log folder path already exists on the local drive.
 For the same dataset, this path must be consistent across different runs of the program.
-This path should not be the path of a portable external drive.
-2. If the dataset is larger than the specified space, run the program as many times as needed,
-each time specifying the space available in the output directory.
+2. If the program terminates because extra disk space is needed to write dicoms to the output folder,
+run the program again as many times as needed, each time with a new output folder containing additional disk space.
 3. This version of the program uses parallelism (multiple processors) to speed-up the anonymization.
 Only up to three of the available logical cores are used by default, to minimize performance issues of other tasks running on the machine.
 See https://docs.python.org/2/library/multiprocessing.html for details on the multiprocessing module.
@@ -50,7 +48,6 @@ from __future__ import print_function
 import sys
 import os
 import logging
-import argparse
 import psutil
 
 import time
@@ -58,8 +55,9 @@ import datetime
 
 import multiprocessing as mp
 
-from constructDicom import write_dicom
-from utils import load_json, save_json, load_link_log, calculate_space, find_max
+import config
+import constructDicom
+from utils import load_json, save_json, load_link_log, find_max
 
 import pydicom
 
@@ -68,21 +66,12 @@ IDENTIFIER_FIELDS = ('mrn', 'accession', 'studyID', 'seriesID', 'sopID')
 MAX_FIELDS = ('max_mrn', 'max_accession', 'max_studyID', 'max_seriesID', 'max_sopID')
 LINK_LOG_FIELDS = ('link_mrn_log', 'link_accession_log', 'link_study_log', 'link_series_log', 'link_sop_log', 'link_master_log')
 
+RESERVE_OUTPUT_SPACE = 50*10**6
+
 N_CORES = mp.cpu_count()
 # Based on empirical performance observations on different machines, restrict the number of cores used
 # TODO: identify a more scientifically grounded approach to deriving the optimal number of cores to use for a given machine
 USE_CORES = max(1, min(3, N_CORES//2))
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(description="Anonymizes DICOM directory")
-    parser.add_argument("-d", "--dcmdir", type=str, help="Input DICOM directory path", required=True)
-    parser.add_argument("-o", "--outdir", type=str, help="Output DICOM directory path", required=True)
-    parser.add_argument("-l", "--linklog", type=str, help="Linking log directory", required=True)
-    parser.add_argument("-s", "--space", type=str, help="Space available for output directory (in GB)", required=True)
-    parser.add_argument("-g", "--group", type=str, help="Group output dicoms into subfolders by anonymized studyID (s) or MRN (m), or do not group into subfolders at all (n)", required=True)
-    args = parser.parse_args()
-    return args
 
 
 def get_dicoms_mp(partition, root, dirs, files):
@@ -108,7 +97,9 @@ def get_dicoms_mp(partition, root, dirs, files):
 
 def get_dicoms(dcm_directory):
     if os.path.isdir(dcm_directory):
-        # Walks through directory and returns a dictionary of each root and its files and root sizes.
+        # Walks through directory, and returns a dictionary with
+        # keys as root folder paths and
+        # values as file paths and total directory size.
         print("Getting dicoms in", dcm_directory)
         logger.info("Getting dicoms in {}".format(dcm_directory))
 
@@ -128,12 +119,13 @@ def get_dicoms(dcm_directory):
     else:
         print("DICOM directory does not exist - ensure path exists")
         logger.error("DICOM directory does not exist - ensure path exists")
-        return None
+        return {}
 
 
-def anonymize_dicoms_mp(link_dict, partition, directory, max_values, out_dir, grouping, space):
+def anonymize_dicoms_mp(link_dict, partition, directory, max_values, out_dir, grouping):
     # Check space limitation. Terminate program if space left is too small.
-    if partition[directory]['size'] > space.value or float(psutil.disk_usage(out_dir).free) < (50*10**6):
+    free_space = float(psutil.disk_usage(out_dir).free)
+    if partition[directory]['size'] > free_space or free_space < RESERVE_OUTPUT_SPACE:
         print('Ran out of space to write files.')
         logger.warning('Ran out of space to write files.')
         return True
@@ -182,22 +174,19 @@ def anonymize_dicoms_mp(link_dict, partition, directory, max_values, out_dir, gr
                 link_dict[LINK_LOG_FIELDS[-1]] = temp_link_dict_master
 
                 try:
-                    write_dicom(ds, anon_values, out_dir, grouping)
+                    constructDicom.write_dicom(ds, anon_values, out_dir, grouping)
                 except Exception as error:
                     exc_type, exc_obj, exc_tb = sys.exc_info()
                     logger.warning('WARNING - file: {} | message: {} {} {} . This warning is for case {} with anon_values {} .'
                                    .format(str(f), str(error), str(exc_type), str(exc_tb.tb_lineno), str(values), str(anon_values)))
 
-    # Account for reduced disk space due to current directory's dicoms.
-    space.value -= partition[directory]['size']
-
-    # Remove that directory's dicoms from further consideration.
+    # Remove directory's dicoms from further consideration.
     del partition[directory]
 
     return False
 
 
-class Anonymize():
+class Anonymize(object):
     def __init__(self):
         self.pool = mp.Pool(USE_CORES)
 
@@ -213,7 +202,7 @@ class Anonymize():
         self.pool.join()
 
 
-def anonymize_dicoms(link_log_path, space, partition, out_dir, grouping, link_dict):
+def anonymize_dicoms(link_log_path, partition, out_dir, grouping, link_dict):
     # Directories containing dicoms to be anonymized
     directories = partition.keys()
 
@@ -225,7 +214,6 @@ def anonymize_dicoms(link_log_path, space, partition, out_dir, grouping, link_di
 
     # Create a manager instance to share variables across processors during multiprocessing execution
     manager = mp.Manager()
-    space = manager.Value('d', space)
     link_dict = manager.dict(link_dict)
     max_values = manager.dict(max_values)
     partition = manager.dict(partition)
@@ -233,7 +221,7 @@ def anonymize_dicoms(link_log_path, space, partition, out_dir, grouping, link_di
     # Run anonymization
     anonymizer = Anonymize()
     for directory in directories:
-        anonymizer.execute(anonymize_dicoms_mp, args=(link_dict, partition, directory, max_values, out_dir, grouping, space))
+        anonymizer.execute(anonymize_dicoms_mp, args=(link_dict, partition, directory, max_values, out_dir, grouping))
     anonymizer.wait()
 
     link_dict = link_dict.copy()
@@ -255,11 +243,10 @@ if __name__ == "__main__":
     sys.stdout = open(os.path.join(os.getcwd(), 'stdout', 'stdout_{}'.format(''.join(start_time.split(':')))), 'w')
 
     # Parse command line arguments.
-    args = parse_args()
+    args = config.parse_args()
     dcm_dir = args.dcmdir
     out_dir = args.outdir
     link_log = args.linklog
-    user_space = float(args.space) * (10**9)
     grouping = args.group
 
     # Log at WARNING level.
@@ -271,15 +258,12 @@ if __name__ == "__main__":
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
-    print(dcm_dir, out_dir, link_log, user_space, grouping)
-    logger.info(dcm_dir, out_dir, link_log, user_space, grouping)
+    print(dcm_dir, out_dir, link_log, grouping)
+    logger.info(dcm_dir, out_dir, link_log, grouping)
 
     # Create output directory, if it doesn't already exist.
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
-
-    # Determine available space on disk.
-    space = calculate_space(user_space, out_dir)
 
     print('Total number of cores {} available. Using {} cores.'.format(N_CORES, USE_CORES))
     logger.info('Total number of cores {} available. Using {} cores.'.format(N_CORES, USE_CORES))
@@ -287,15 +271,15 @@ if __name__ == "__main__":
     # Load partition, if it exists.
     try:
         partition = load_json(os.path.join(link_log, 'partition.json'))
+        print('Loading existing partition.')
+        logger.info('Loading existing partition.')
     except:
-        print('Partition does not exist. A new one will be created.')
-        logger.info('Partition does not exist. A new one will be created.')
         partition = {}
 
     # Load cache of cases already analyzed, otherwise instantiate new caches
     link_dict = {}
     for i_iter in range(len(LINK_LOG_FIELDS)):
-        link_dict[LINK_LOG_FIELDS[i_iter]] = load_link_log(logger, link_log, "{}.json".format(LINK_LOG_FIELDS[i_iter]), "{} not found - a new one will be created.".format(LINK_LOG_FIELDS[i_iter]))
+        link_dict[LINK_LOG_FIELDS[i_iter]] = load_link_log(logger, link_log, "{}.json".format(LINK_LOG_FIELDS[i_iter]), "Loading existing {}.".format(LINK_LOG_FIELDS[i_iter]))
 
     # Load and anonymize dicoms.
     try:
@@ -307,7 +291,7 @@ if __name__ == "__main__":
             save_json(partition, os.path.join(link_log, 'partition.json'))
 
         start_time_anonymize_dicoms = time.time()
-        anonymize_dicoms(link_log, space, partition, out_dir, grouping, link_dict)
+        anonymize_dicoms(link_log, partition, out_dir, grouping, link_dict)
         end_time_anonymize_dicoms = time.time()
         print("--- Process anonymize_dicoms took %s seconds to execute ---" % round((end_time_anonymize_dicoms - start_time_anonymize_dicoms), 2))
     except ValueError:

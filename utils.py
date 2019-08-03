@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 import os
-import psutil
 
 import time
 import datetime
@@ -23,10 +22,10 @@ def save_json(data, file_name):
 def load_link_log(logger, link_log_path, file_name, message):
     if (link_log_path is not None) and os.path.exists(os.path.join(link_log_path, file_name)):
         link_dict = load_json(os.path.join(link_log_path, file_name))
-    else:
-        link_dict = {}
         print(message)
         logger.info(message)
+    else:
+        link_dict = {}
     return link_dict
 
 
@@ -50,25 +49,12 @@ def clean_string(string):
     return string
 
 
-def calculate_space(user_space, out_dir):
-    # Make sure space provided by user does not exceed available disk space
-    free_disk_space = float(psutil.disk_usage(out_dir).free)
-
-    space = min(user_space, free_disk_space)
-
-    # As a precautionary measure, account for the 1.024 to 1.000 byte ratio for every 10**3 "metric" bytes.
-    # (Difference between "metric system" (powers of 10) vs "computer byte system" (powers of 2).)
-    # This factor is 1.024**3 at GB scale (1.024 for every 10**3 "metric" bytes).
-    # TODO: Verify if this precautionary measure is absolutely necessary.
-    space /= (1.024**3)
-
-    # Further precautionary reduction, for example in the case where a dedicated segment of drive is preserved.
-    space -= (10**9)
-
-    return space
-
-
 def find_max(link_dict):
+    """
+    Finding the maximum of a hash table's values is an O(N) operation, where N is the number of keys already present
+    in the hash table <link_dict>. However, because we are only computing this value once between program runs,
+    and in fact not even once for a one-time run, there is no need to optimize efficiency via a (for example) max-heap.
+    """
     if link_dict:
         max_value = max(link_dict.values())
     else:

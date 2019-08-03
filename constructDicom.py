@@ -23,7 +23,6 @@ except ImportError:
     print('Python package gdcm', IMPORT_ERROR_MESSAGE)
 
 from pydicom.dataset import Dataset, FileDataset
-
 from pydicom.pixel_data_handlers.util import pixel_dtype, reshape_pixel_array
 try:
     from pydicom.pixel_data_handlers.numpy_handler import get_expected_length
@@ -39,27 +38,24 @@ def write_dicom(ods, anon_values, out_dir, grouping):
     file_meta.MediaStorageSOPInstanceUID = str(anon_values['sopID'])
     file_meta.ImplementationClassUID = '0.0'
     file_meta.TransferSyntaxUID = ods.file_meta.TransferSyntaxUID if "TransferSyntaxUID" in ods.file_meta else "0.0"
+
     ds = FileDataset(anon_values['studyID'], {}, file_meta=file_meta, preamble="\0"*128)
 
-    ds.Modality = ods.Modality if "Modality" in ods else ""
-    ds.StudyDate = "000000"
-    ds.StudyTime = "000000"
     ds.StudyInstanceUID = str(anon_values['studyID'])
     ds.SeriesInstanceUID = str(anon_values['seriesID'])
     ds.SOPInstanceUID = str(anon_values['sopID'])
     ds.SOPClassUID = 'Secondary Capture Image Storage'
-    ds.SecondaryCaptureDeviceManufctur = 'Python 2.7'
-
     ds.AccessionNumber = str(anon_values['accession'])
     ds.PatientID = str(anon_values['mrn'])
     ds.StudyID = str(anon_values['studyID'])
 
     ds.PatientName = str(anon_values['mrn'])
-    ds.SpecificCharacterSet = ods.SpecificCharacterSet if "SpecificCharacterSet" in ods else ""
     ds.ReferringPhysicianName = ""
-    ds.PatientOrientation = ods.PatientOrientation if "PatientOrientation" in ods else ""
+    ds.StudyDate = "000000"
+    ds.StudyTime = "000000"
     ds.PatientBirthTime = "000000.000000"
     ds.PatientBirthDate = "00000000"
+
     ds.PatientAge = calculate_age(ods.StudyDate, ods.PatientBirthDate) if "StudyDate" in ods and "PatientBirthDate" in ods else ""
     ds.PatientSex = ods.PatientSex if "PatientSex" in ods else ""
     ds.StudyDescription = ods.StudyDescription if "StudyDescription" in ods else ""
@@ -70,6 +66,7 @@ def write_dicom(ods, anon_values, out_dir, grouping):
     ds.PlanarConfiguration = ods.PlanarConfiguration if "PlanarConfiguration" in ods else ""
     ds.SamplesPerPixel = ods.SamplesPerPixel if "SamplesPerPixel" in ods else ""
     ds.PhotometricInterpretation = ods.PhotometricInterpretation if "PhotometricInterpretation" in ods else ""
+    ds.PatientOrientation = ods.PatientOrientation if "PatientOrientation" in ods else ""
     ds.PixelRepresentation = ods.PixelRepresentation if "PixelRepresentation" in ods else ""
     ds.HighBit = ods.HighBit if "HighBit" in ods else ""
     ds.BitsStored = ods.BitsStored if "BitsStored" in ods else ""
@@ -83,6 +80,9 @@ def write_dicom(ods, anon_values, out_dir, grouping):
     arr = reshape_pixel_array(ods, arr)
     ds.PixelData = arr.tobytes()
 
+    ds.SpecificCharacterSet = ods.SpecificCharacterSet if "SpecificCharacterSet" in ods else ""
+    ds.Modality = ods.Modality if "Modality" in ods else ""
+    ds.SecondaryCaptureDeviceManufctur = 'Python 2.7'
     ds.PresentationLUTShape = ods.PresentationLUTShape if "PresentationLUTShape" in ods else ""
     ds.KVP = ods.KVP if "KVP" in ods else ""
     ds.XRayTubeCurrent = ods.XRayTubeCurrent if "XRayTubeCurrent" in ods else ""
