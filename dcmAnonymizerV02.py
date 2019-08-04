@@ -51,7 +51,7 @@ import time
 import datetime
 
 import config
-import constructDicom
+from constructDicom import *
 from utils import load_json, save_json, load_link_log, find_max
 
 import pydicom
@@ -87,7 +87,6 @@ def get_dicoms(dcm_directory):
                 if is_dicom:
                     partition[root]['queue'].append(os.path.join(root, name))
                     partition[root]['size'] += os.stat(os.path.join(root, name)).st_size
-        return partition
     else:
         print("DICOM directory does not exist - check the path")
         logger.error("DICOM directory does not exist - check the path")
@@ -141,7 +140,7 @@ def anonymize_dicoms(link_log_path, partition, out_dir, grouping, link_dict):
                     logger.info('mrn-accession-studyID-seriesID-sopID tuple has already been anonymized.')
                 else:
                     try:
-                        constructDicom.write_dicom(ds, anon_values, out_dir, grouping)
+                        write_dicom(ds, anon_values, out_dir, grouping)
                         link_dict[LINK_LOG_FIELDS[-1]][str(dicom_tuple)] = 1
                     except Exception as error:
                         exc_type, exc_obj, exc_tb = sys.exc_info()

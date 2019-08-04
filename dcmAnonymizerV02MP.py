@@ -56,7 +56,7 @@ import datetime
 import multiprocessing as mp
 
 import config
-import constructDicom
+from constructDicom import *
 from utils import load_json, save_json, load_link_log, find_max
 
 import pydicom
@@ -72,6 +72,22 @@ N_CORES = mp.cpu_count()
 # Based on empirical performance observations on different machines, restrict the number of cores used
 # TODO: identify a more scientifically grounded approach to deriving the optimal number of cores to use for a given machine
 USE_CORES = max(1, min(3, N_CORES//2))
+
+
+class Anonymize(object):
+    def __init__(self):
+        self.pool = mp.Pool(USE_CORES)
+
+    def terminate_callback(self, result):
+        if result:
+            self.pool.terminate()
+
+    def execute(self, function, args):
+        self.pool.apply_async(function, args=args, callback=self.terminate_callback)
+
+    def wait(self):
+        self.pool.close()
+        self.pool.join()
 
 
 def get_dicoms_mp(partition, root, dirs, files):
@@ -170,7 +186,7 @@ def anonymize_dicoms_mp(link_dict, partition, directory, max_values, out_dir, gr
                 logger.info('mrn-accession-studyID-seriesID-sopID tuple {} has already been anonymized.'.format(str(dicom_tuple)))
             else:
                 try:
-                    constructDicom.write_dicom(ds, anon_values, out_dir, grouping)
+                    write_dicom(ds, anon_values, out_dir, grouping)
                     temp_link_dict_master = link_dict[LINK_LOG_FIELDS[-1]]
                     temp_link_dict_master[str(dicom_tuple)] = 1
                     link_dict[LINK_LOG_FIELDS[-1]] = temp_link_dict_master
@@ -183,22 +199,6 @@ def anonymize_dicoms_mp(link_dict, partition, directory, max_values, out_dir, gr
     del partition[directory]
 
     return False
-
-
-class Anonymize(object):
-    def __init__(self):
-        self.pool = mp.Pool(USE_CORES)
-
-    def terminate_callback(self, result):
-        if result:
-            self.pool.terminate()
-
-    def execute(self, function, args):
-        self.pool.apply_async(function, args=args, callback=self.terminate_callback)
-
-    def wait(self):
-        self.pool.close()
-        self.pool.join()
 
 
 def anonymize_dicoms(link_log_path, partition, out_dir, grouping, link_dict):
