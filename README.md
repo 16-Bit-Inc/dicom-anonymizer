@@ -21,21 +21,19 @@ See [info on data handlers](https://pydicom.github.io/pydicom/stable/image_data_
 
 Usage:
 ```
-python dcmAnonymizerV02.py -d <input directory> -o <output directory> -l <linking log directory> -g <s/m/n>
+python dcmAnonymizerV02.py -d <input directory> -o <output directory> -l <linking log directory> -g <a/s/m/n>
 ```
 
 Program input:
 1. Top-level directory containing all dicoms, either directly within the directory, or in subdirectories.
 
 Notes:
-1. Please make sure that the linking log folder path already exists on the local drive.
-For the same dataset, this path must be consistent across different runs of the program.
+1. For the same dataset, the path of the linking log folder must be consistent across different runs of the program.
 2. If the program terminates because extra disk space is needed to write dicoms to the output folder,
 run the program again as many times as needed, each time with a new output folder containing additional disk space.
 
 Program output:
 1. For each dicom in the input directory (recursive for subdirectories), if it doesn't already exist, the program writes an anonymized version to the desired output directory.
-The output (anonymized) dicoms are grouped into subfolders by studyID/MRN, or are not grouped into subfolders at all.
 2. Generates or updates existing link log files (the underlying data structure is a hash table). These are used to determine whether a dicom has already been anonymized or not.
 
 

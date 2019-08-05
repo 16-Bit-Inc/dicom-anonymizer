@@ -29,7 +29,7 @@ try:
 except ImportError:
     from pydicom.pixel_data_handlers.util import get_expected_length
 
-from utils import calculate_age, clean_string
+from utils import create_dir, calculate_age, clean_string
 
 
 def write_dicom(ods, anon_values, out_dir, grouping):
@@ -110,13 +110,14 @@ def write_dicom(ods, anon_values, out_dir, grouping):
     filename = clean_string(str(anon_values['mrn']) + "_" + str(anon_values['studyID']) + "_" + str(ds.SeriesNumber) + "_" + str(ds.InstanceNumber) + "_" + str(ds.Modality) + "_" + str(ds.ViewPosition) + ".dcm")
 
     # Create study directory, if it doesn't already exist.
-    if grouping == 's':
-        if not os.path.exists(os.path.join(out_dir, str(anon_values['studyID']))):
-            os.makedirs(os.path.join(out_dir, str(anon_values['studyID'])))
+    if grouping == 'a':
+        create_dir(os.path.join(out_dir, str(anon_values['accession'])))
+        outpath = os.path.join(out_dir, str(anon_values['accession']), filename)
+    elif grouping == 's':
+        create_dir(os.path.join(out_dir, str(anon_values['studyID'])))
         outpath = os.path.join(out_dir, str(anon_values['studyID']), filename)
     elif grouping == 'm':
-        if not os.path.exists(os.path.join(out_dir, str(anon_values['mrn']))):
-            os.makedirs(os.path.join(out_dir, str(anon_values['mrn'])))
+        create_dir(os.path.join(out_dir, str(anon_values['mrn'])))
         outpath = os.path.join(out_dir, str(anon_values['mrn']), filename)
     else:
         outpath = os.path.join(out_dir, filename)

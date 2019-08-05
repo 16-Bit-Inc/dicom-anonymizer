@@ -21,16 +21,16 @@ and cloning the CharPyLs repository from https://github.com/Who8MyLunch/CharPyLS
 See https://pydicom.github.io/pydicom/stable/image_data_handlers.html for specifications on which handlers may be needed for your dicom files.
 
 Usage:
-python dcmAnonymizerV02MP.py -d <input directory> -o <output directory> -l <linking log directory> -g <s/m/n> (group into subfolders by either studyID or MRN, or do not group into subfolders at all)
-Example usage where the output dicoms are grouped into subfolders by anonymized studyID:
-python dcmAnonymizerV02MP.py -d ./data -o ./anondata -l ./linklog -g s
+python dcmAnonymizerV02MP.py -d <input directory> -o <output directory> -l <linking log directory> -g <a/s/m/n>
+(group into subfolders by either anonymized accession number (a), Study Instance UID (s), MRN (m), or do not group into subfolders at all (n))
+Example usage where the output dicoms are grouped into subfolders by anonymized accession number:
+python dcmAnonymizerV02MP.py -d ./data -o ./anondata -l ./linklog -g a
 
 Program input:
 1. Top-level directory containing all dicoms, either directly within the directory, or in subdirectories.
 
 Notes:
-1. Please make sure that the linking log folder path already exists on the local drive.
-For the same dataset, this path must be consistent across different runs of the program.
+1. For the same dataset, the path of the linking log folder must be consistent across different runs of the program.
 2. If the program terminates because extra disk space is needed to write dicoms to the output folder,
 run the program again as many times as needed, each time with a new output folder containing additional disk space.
 3. This version of the program uses parallelism (multiple processors) to speed-up the anonymization.
@@ -39,7 +39,6 @@ See https://docs.python.org/2/library/multiprocessing.html for details on the mu
 
 Program output:
 1. For each dicom in the input directory (recursive for subdirectories), if it doesn't already exist, the program writes an anonymized version to the desired output directory.
-The output (anonymized) dicoms are grouped into subfolders by studyID/MRN, or are not grouped into subfolders at all.
 2. Generates or updates existing link log files. These are used to determine whether a dicom has already been anonymized or not.
 """
 
@@ -57,7 +56,7 @@ import multiprocessing as mp
 
 import config
 from constructDicom import *
-from utils import load_json, save_json, load_link_log, find_max
+from utils import create_dir, load_json, save_json, load_link_log, find_max
 
 import pydicom
 
@@ -157,13 +156,14 @@ def anonymize_dicoms_mp(link_dict, partition, directory, max_values, out_dir, gr
                 is_valid_dicom_image = False
 
         if is_valid_dicom_image:
-            values = (ds.PatientID, ds.AccessionNumber, ds.StudyInstanceUID, ds.SeriesInstanceUID, ds.SOPInstanceUID)
+            values = (str(ds.PatientID).upper(), str(ds.AccessionNumber).upper(), str(ds.StudyInstanceUID).upper(),
+                      str(ds.SeriesInstanceUID).upper(), str(ds.SOPInstanceUID).upper())
             anon_values = {identifier: None for identifier in IDENTIFIER_FIELDS}
 
             for i_iter in range(len(DICOM_FIELDS)):
                 # Create a unique link between dicom info and anonymous keys to be stored.
-                if str(values[i_iter]) in link_dict[LINK_LOG_FIELDS[i_iter]]:
-                    temp_anon_value = link_dict[LINK_LOG_FIELDS[i_iter]][str(values[i_iter])]
+                if values[i_iter] in link_dict[LINK_LOG_FIELDS[i_iter]]:
+                    temp_anon_value = link_dict[LINK_LOG_FIELDS[i_iter]][values[i_iter]]
                     anon_values[IDENTIFIER_FIELDS[i_iter]] = temp_anon_value
                 else:
                     temp_max_value = max_values[MAX_FIELDS[i_iter]] + 1
@@ -172,7 +172,7 @@ def anonymize_dicoms_mp(link_dict, partition, directory, max_values, out_dir, gr
                     anon_values[IDENTIFIER_FIELDS[i_iter]] = max_values[MAX_FIELDS[i_iter]]
 
                     temp_link_dict = link_dict[LINK_LOG_FIELDS[i_iter]]
-                    temp_link_dict[str(values[i_iter])] = anon_values[IDENTIFIER_FIELDS[i_iter]]
+                    temp_link_dict[values[i_iter]] = anon_values[IDENTIFIER_FIELDS[i_iter]]
                     link_dict[LINK_LOG_FIELDS[i_iter]] = temp_link_dict
 
             # If combination of keys already exists in the cache, skip the current dicom.
@@ -207,9 +207,7 @@ def anonymize_dicoms(link_log_path, partition, out_dir, grouping, link_dict):
 
     # Determine where the incrementer stopped in previous runs of the program.
     # Important for creating new identifiers for newly encountered cases.
-    max_values = {}
-    for i_iter in range(len(MAX_FIELDS)):
-        max_values[MAX_FIELDS[i_iter]] = find_max(link_dict[LINK_LOG_FIELDS[i_iter]])
+    max_values = {MAX_FIELDS[i_iter]: find_max(link_dict[LINK_LOG_FIELDS[i_iter]]) for i_iter in range(len(MAX_FIELDS))}
 
     # Create a manager instance to share variables across processors during multiprocessing execution
     manager = mp.Manager()
@@ -237,60 +235,59 @@ def anonymize_dicoms(link_log_path, partition, out_dir, grouping, link_dict):
 if __name__ == "__main__":
     start_time = str(datetime.datetime.now())
 
-    if not os.path.exists(os.path.join(os.getcwd(), 'stdout')):
-        os.makedirs(os.path.join(os.getcwd(), 'stdout'))
+    create_dir(os.path.join(os.getcwd(), 'stdout'))
     sys.stdout = open(os.path.join(os.getcwd(), 'stdout', 'stdout_{}'.format(''.join(start_time.split(':')))), 'w')
 
     # Parse command line arguments.
     args = config.parse_args()
-    dcm_dir = args.dcmdir
-    out_dir = args.outdir
-    link_log = args.linklog
-    grouping = args.group
+    input_dir = args.input_dir
+    output_dir = args.output_dir
+    link_log_dir = args.link_log_dir
+    group_by = args.group_by
+
+    # Create link log and output directories, if they don't already exist.
+    create_dir(output_dir)
+    create_dir(link_log_dir)
 
     # Log at WARNING level.
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.WARNING)
     formatter = logging.Formatter(fmt='%(asctime)s:%(levelname)s:%(lineno)d:%(message)s',
                                   datefmt='%m/%d/%Y %I:%M:%S %p')
-    handler = logging.FileHandler(os.path.join(link_log, 'dcm_anonymize_{}.log'.format(''.join(start_time.split(':')))))
+    handler = logging.FileHandler(os.path.join(link_log_dir, 'dcm_anonymize_{}.log'.format(''.join(start_time.split(':')))))
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
-    print(dcm_dir, out_dir, link_log, grouping)
-    logger.info(dcm_dir, out_dir, link_log, grouping)
-
-    # Create output directory, if it doesn't already exist.
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    print(input_dir, output_dir, link_log_dir, group_by)
+    logger.info(input_dir, output_dir, link_log_dir, group_by)
 
     print('Total number of cores {} available. Using {} cores.'.format(N_CORES, USE_CORES))
     logger.info('Total number of cores {} available. Using {} cores.'.format(N_CORES, USE_CORES))
 
     # Load partition, if it exists.
     try:
-        partition = load_json(os.path.join(link_log, 'partition.json'))
+        partition = load_json(os.path.join(link_log_dir, 'partition.json'))
         print('Loading existing partition.')
         logger.info('Loading existing partition.')
     except:
         partition = {}
 
-    # Load cache of cases already analyzed, otherwise instantiate new caches
-    link_dict = {}
-    for i_iter in range(len(LINK_LOG_FIELDS)):
-        link_dict[LINK_LOG_FIELDS[i_iter]] = load_link_log(logger, link_log, "{}.json".format(LINK_LOG_FIELDS[i_iter]), "Loading existing {}.".format(LINK_LOG_FIELDS[i_iter]))
+    # Load cache of cases already analyzed, otherwise instantiate new caches.
+    link_dict = {link_log_field:
+                 load_link_log(logger, link_log_dir, "{}.json".format(link_log_field), "Loading existing {}.".format(link_log_field))
+                 for link_log_field in LINK_LOG_FIELDS}
 
     # Load and anonymize dicoms.
     try:
         if not partition:
             start_time_get_dicoms = time.time()
-            partition = get_dicoms(dcm_dir)
+            partition = get_dicoms(input_dir)
             end_time_get_dicoms = time.time()
             print("--- Process get_dicoms took %s seconds to execute ---" % round((end_time_get_dicoms - start_time_get_dicoms), 2))
-            save_json(partition, os.path.join(link_log, 'partition.json'))
+            save_json(partition, os.path.join(link_log_dir, 'partition.json'))
 
         start_time_anonymize_dicoms = time.time()
-        anonymize_dicoms(link_log, partition, out_dir, grouping, link_dict)
+        anonymize_dicoms(link_log_dir, partition, output_dir, group_by, link_dict)
         end_time_anonymize_dicoms = time.time()
         print("--- Process anonymize_dicoms took %s seconds to execute ---" % round((end_time_anonymize_dicoms - start_time_anonymize_dicoms), 2))
     except ValueError:

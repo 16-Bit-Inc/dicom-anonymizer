@@ -7,6 +7,11 @@ import datetime
 import json
 
 
+def create_dir(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+
 def load_json(file_name):
     with open(file_name) as data_file:
         data = json.load(data_file)
