@@ -9,19 +9,19 @@ please send correspondences to *Daniel Eftekhari* at daniel@16bit.ai
 The multiprocessing version of the program, dcmAnonymizerV02MP.py makes use of multiprocessing to speed up the anonymization process.
 
 Software requirements:
-1. Anaconda Distribution Python version 2.7.*
+1. Anaconda Distribution Python version 3.*
 Download Anaconda at [https://www.anaconda.com/download/](https://www.anaconda.com/download/)
 2. After installing Anaconda, add /PATH/TO/ANACONDA and /PATH/TO/ANACONDA/SCRIPTS to your system PATH.
 3. Please make sure pydicom has been installed prior to running this program.
 This can be done by entering `conda install -c conda-forge pydicom` in the command line/prompt.
 4. There are several image handler packages which may or may not be needed depending on your dicom transfer syntaxes.
 These packages are imported by default. Only gdcm and jpeg_ls need to be installed manually (assuming Anaconda Distribution is being used).
-This can be done by running `conda install -c conda-forge gdcm` to install gdcm, and cloning the CharPyLs repository from https://github.com/Who8MyLunch/CharPyLS and running `pip install .` from inside the CharPyLs directory.
+This can be done by running `conda install -c conda-forge gdcm` to install gdcm, and cloning the CharPyLs repository from https://github.com/Who8MyLunch/CharPyLS and running `pip3 install .` from inside the CharPyLs directory.
 See [info on data handlers](https://pydicom.github.io/pydicom/stable/image_data_handlers.html) for specifications on which handlers may be needed for your dicom files.
 
 Usage:
 ```
-python dcmAnonymizerV02.py -d <input directory> -o <output directory> -l <linking log directory> -g <a/s/m/n>
+python3 dcmAnonymizerV02.py -d <input directory> -o <output directory> -l <linking log directory> -g <a/s/m/n>
 ```
 
 Program input:

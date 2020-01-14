@@ -3,7 +3,8 @@ from __future__ import print_function
 import os
 
 # Image handlers
-IMPORT_ERROR_MESSAGE = 'could not be imported. This may cause issues, depending on the transfer syntaxes of the dicom files.'
+IMPORT_ERROR_MESSAGE = 'could not be imported. This may cause issues, depending on the transfer syntaxes of the dicom files.' \
+                       'See https://pydicom.github.io/pydicom/stable/image_data_handlers.html for details.'
 try:
     import numpy
     import numpy as np
@@ -11,6 +12,7 @@ except ImportError:
     print('Python package numpy', IMPORT_ERROR_MESSAGE)
 try:
     import PIL
+    from PIL import Image
 except ImportError:
     print('Python package PIL', IMPORT_ERROR_MESSAGE)
 try:
@@ -22,12 +24,9 @@ try:
 except ImportError:
     print('Python package gdcm', IMPORT_ERROR_MESSAGE)
 
+import h5py
+
 from pydicom.dataset import Dataset, FileDataset
-from pydicom.pixel_data_handlers.util import pixel_dtype, reshape_pixel_array
-try:
-    from pydicom.pixel_data_handlers.numpy_handler import get_expected_length
-except ImportError:
-    from pydicom.pixel_data_handlers.util import get_expected_length
 
 from utils import create_dir, calculate_age, clean_string
 
@@ -39,7 +38,7 @@ def write_dicom(ods, anon_values, out_dir, grouping):
     file_meta.ImplementationClassUID = '0.0'
     file_meta.TransferSyntaxUID = ods.file_meta.TransferSyntaxUID if "TransferSyntaxUID" in ods.file_meta else "0.0"
 
-    ds = FileDataset(anon_values['studyID'], {}, file_meta=file_meta, preamble="\0"*128)
+    ds = FileDataset(anon_values['studyID'], {}, file_meta=file_meta, preamble=ods.preamble)
 
     ds.StudyInstanceUID = str(anon_values['studyID'])
     ds.SeriesInstanceUID = str(anon_values['seriesID'])
@@ -75,14 +74,9 @@ def write_dicom(ods, anon_values, out_dir, grouping):
     ds.Rows = ods.Rows if "Rows" in ods else ""
     ds.ImagerPixelSpacing = ods.ImagerPixelSpacing if "ImagerPixelSpacing" in ods else ""
 
-    expected_len = get_expected_length(ods)
-    arr = np.frombuffer(ods.PixelData[0:expected_len], dtype=pixel_dtype(ods))
-    arr = reshape_pixel_array(ods, arr)
-    ds.PixelData = arr.tobytes()
-
     ds.SpecificCharacterSet = ods.SpecificCharacterSet if "SpecificCharacterSet" in ods else ""
     ds.Modality = ods.Modality if "Modality" in ods else ""
-    ds.SecondaryCaptureDeviceManufctur = 'Python 2.7'
+    ds.SecondaryCaptureDeviceManufctur = 'Python 3.X'
     ds.PresentationLUTShape = ods.PresentationLUTShape if "PresentationLUTShape" in ods else ""
     ds.KVP = ods.KVP if "KVP" in ods else ""
     ds.XRayTubeCurrent = ods.XRayTubeCurrent if "XRayTubeCurrent" in ods else ""
@@ -107,7 +101,7 @@ def write_dicom(ods, anon_values, out_dir, grouping):
     ds.EstimatedRadiographicMagnificationFactor = ods.EstimatedRadiographicMagnificationFactor if "EstimatedRadiographicMagnificationFactor" in ods else ""
     ds.DateOfLastDetectorCalibration = ods.DateOfLastDetectorCalibration if "DateOfLastDetectorCalibration" in ods else ""
 
-    filename = clean_string(str(anon_values['mrn']) + "_" + str(anon_values['studyID']) + "_" + str(ds.SeriesNumber) + "_" + str(ds.InstanceNumber) + "_" + str(ds.Modality) + "_" + str(ds.ViewPosition) + ".dcm")
+    filename = clean_string('m' + str(anon_values['mrn']) + "_a" + str(anon_values['accession']) + "_st" + str(anon_values['studyID']) + "_se" + str(anon_values['seriesID']) + "_i" + str(anon_values['sopID']) + "_" + str(ds.SeriesNumber) + "_" + str(ds.InstanceNumber) + "_" + str(ds.Modality) + "_" + str(ds.ViewPosition) + ".dcm")
 
     # Create study directory, if it doesn't already exist.
     if grouping == 'a':
@@ -121,4 +115,10 @@ def write_dicom(ods, anon_values, out_dir, grouping):
         outpath = os.path.join(out_dir, str(anon_values['mrn']), filename)
     else:
         outpath = os.path.join(out_dir, filename)
+
+    if 'PixelData' in ods:
+        ds.PixelData = ''
+        pixel_array = ods.pixel_array
+        f = h5py.File('{}.hdf5'.format(outpath[0:-4]))
+        f.create_dataset("pixel_array", pixel_array.shape, data=pixel_array, dtype=str(pixel_array.dtype), compression="gzip", shuffle=True)
     ds.save_as(outpath, write_like_original=False)
