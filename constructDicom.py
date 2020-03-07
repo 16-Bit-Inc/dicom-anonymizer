@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import os
 
 # Image handlers
@@ -28,7 +26,7 @@ import h5py
 
 from pydicom.dataset import Dataset, FileDataset
 
-from utils import create_dir, calculate_age, clean_string
+import utils
 
 
 def write_dicom(ods, anon_values, out_dir, grouping):
@@ -55,7 +53,7 @@ def write_dicom(ods, anon_values, out_dir, grouping):
     ds.PatientBirthTime = "000000.000000"
     ds.PatientBirthDate = "00000000"
 
-    ds.PatientAge = calculate_age(ods.StudyDate, ods.PatientBirthDate) if "StudyDate" in ods and "PatientBirthDate" in ods else ""
+    ds.PatientAge = utils.calculate_age(ods.StudyDate, ods.PatientBirthDate) if "StudyDate" in ods and "PatientBirthDate" in ods else ""
     ds.PatientSex = ods.PatientSex if "PatientSex" in ods else ""
     ds.StudyDescription = ods.StudyDescription if "StudyDescription" in ods else ""
     ds.SeriesDescription = ods.SeriesDescription if "SeriesDescription" in ods else ""
@@ -101,24 +99,24 @@ def write_dicom(ods, anon_values, out_dir, grouping):
     ds.EstimatedRadiographicMagnificationFactor = ods.EstimatedRadiographicMagnificationFactor if "EstimatedRadiographicMagnificationFactor" in ods else ""
     ds.DateOfLastDetectorCalibration = ods.DateOfLastDetectorCalibration if "DateOfLastDetectorCalibration" in ods else ""
 
-    filename = clean_string('m' + str(anon_values['mrn']) + "_a" + str(anon_values['accession']) + "_st" + str(anon_values['studyID']) + "_se" + str(anon_values['seriesID']) + "_i" + str(anon_values['sopID']) + "_" + str(ds.SeriesNumber) + "_" + str(ds.InstanceNumber) + "_" + str(ds.Modality) + "_" + str(ds.ViewPosition) + ".dcm")
+    filename = utils.clean_string("a" + str(anon_values['accession']) + "_st" + str(anon_values['studyID']) + '_m' + str(anon_values['mrn']) + "_se" + str(anon_values['seriesID']) + "_i" + str(anon_values['sopID']) + "_" + str(ds.SeriesNumber) + "_" + str(ds.InstanceNumber) + "_" + str(ds.Modality) + "_" + str(ds.ViewPosition) + ".dcm")
 
     # Create study directory, if it doesn't already exist.
     if grouping == 'a':
-        create_dir(os.path.join(out_dir, str(anon_values['accession'])))
-        outpath = os.path.join(out_dir, str(anon_values['accession']), filename)
+        utils.make_dirs(os.path.join(out_dir, str(anon_values['accession'])))
+        out_path = os.path.join(out_dir, str(anon_values['accession']), filename)
     elif grouping == 's':
-        create_dir(os.path.join(out_dir, str(anon_values['studyID'])))
-        outpath = os.path.join(out_dir, str(anon_values['studyID']), filename)
+        utils.make_dirs(os.path.join(out_dir, str(anon_values['studyID'])))
+        out_path = os.path.join(out_dir, str(anon_values['studyID']), filename)
     elif grouping == 'm':
-        create_dir(os.path.join(out_dir, str(anon_values['mrn'])))
-        outpath = os.path.join(out_dir, str(anon_values['mrn']), filename)
+        utils.make_dirs(os.path.join(out_dir, str(anon_values['mrn'])))
+        out_path = os.path.join(out_dir, str(anon_values['mrn']), filename)
     else:
-        outpath = os.path.join(out_dir, filename)
+        out_path = os.path.join(out_dir, filename)
 
     if 'PixelData' in ods:
         ds.PixelData = ''
         pixel_array = ods.pixel_array
-        f = h5py.File('{}.hdf5'.format(outpath[0:-4]))
+        f = h5py.File('{}.hdf5'.format(out_path[0:-4]))
         f.create_dataset("pixel_array", pixel_array.shape, data=pixel_array, dtype=str(pixel_array.dtype), compression="gzip", shuffle=True)
-    ds.save_as(outpath, write_like_original=False)
+    ds.save_as(out_path, write_like_original=False)

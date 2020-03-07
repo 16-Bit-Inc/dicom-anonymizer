@@ -3,7 +3,6 @@ import argparse
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Anonymizes DICOM directory")
-
     parser.add_argument("-d",
                         "--input_dir",
                         type=str,

@@ -1,20 +1,25 @@
-from __future__ import print_function
-
 import os
-
+import shutil
 import datetime
 
 import json
 
 
-def create_dir(path):
-    if not os.path.exists(path):
+def make_dirs(path, replace=False):
+    if not os.path.isdir(path):
         os.makedirs(path)
+    else:
+        if replace:
+            shutil.rmtree(path)
+            os.makedirs(path)
 
 
 def load_json(file_name):
-    with open(file_name) as data_file:
-        data = json.load(data_file)
+    if os.path.isfile(file_name):
+        with open(file_name) as data_file:
+            data = json.load(data_file)
+    else:
+        data = None
     return data
 
 

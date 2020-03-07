@@ -1,4 +1,4 @@
-# README #
+# DICOM ANONYMIZER #
 
 Takes an input directory, and creates new de-identified files for each DICOM file encountered in the directory, including subdirectories.
 
@@ -9,7 +9,7 @@ please send correspondences to *Daniel Eftekhari* at daniel@16bit.ai
 The multiprocessing version of the program, dcmAnonymizerV02MP.py makes use of multiprocessing to speed up the anonymization process.
 
 Software requirements:
-1. Anaconda Distribution Python version 3.*
+1. Anaconda Distribution Python version 3
 Download Anaconda at [https://www.anaconda.com/download/](https://www.anaconda.com/download/)
 2. After installing Anaconda, add /PATH/TO/ANACONDA and /PATH/TO/ANACONDA/SCRIPTS to your system PATH.
 3. Please make sure pydicom has been installed prior to running this program.

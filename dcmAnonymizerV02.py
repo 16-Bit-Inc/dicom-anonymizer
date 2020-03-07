@@ -9,7 +9,7 @@ Program name:
 dcmAnonymizerV02.py
 
 Software requirements:
-1. Anaconda Distribution Python version 3.*
+1. Anaconda Distribution Python version 3
 Download Anaconda at https://www.anaconda.com/download/
 2. After installing Anaconda, add /PATH/TO/ANACONDA and /PATH/TO/ANACONDA/SCRIPTS to your system PATH.
 3. Please make sure pydicom has been installed prior to running this program.
@@ -39,21 +39,18 @@ Program output:
 2. Generates or updates existing link log files. These are used to determine whether a dicom has already been anonymized or not.
 """
 
-from __future__ import print_function
-
 import sys
 import os
 import logging
 import psutil
-
 import time
 import datetime
 
-import config
-from constructDicom import *
-from utils import create_dir, load_json, save_json, load_link_log, find_max
-
 import pydicom
+
+import config
+import constructDicom
+import utils
 
 DICOM_FIELDS = ('PatientID', 'AccessionNumber', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID')
 IDENTIFIER_FIELDS = ('mrn', 'accession', 'studyID', 'seriesID', 'sopID')
@@ -94,11 +91,11 @@ def get_dicoms(dcm_directory):
 
 def anonymize_dicoms(link_log_path, partition, out_dir, grouping, link_dict):
     # Directories containing dicoms to be anonymized
-    directories = partition.keys()
+    directories = list(partition.keys())
 
     # Determine where the incrementer stopped in previous runs of the program.
     # Important for creating new identifiers for newly encountered cases.
-    max_values = {MAX_FIELDS[i_iter]: find_max(link_dict[LINK_LOG_FIELDS[i_iter]]) for i_iter in range(len(MAX_FIELDS))}
+    max_values = {MAX_FIELDS[i_iter]: utils.find_max(link_dict[LINK_LOG_FIELDS[i_iter]]) for i_iter in range(len(MAX_FIELDS))}
 
     for directory in directories:
         # Check space limitation. Terminate program if space left is too small.
@@ -137,10 +134,10 @@ def anonymize_dicoms(link_log_path, partition, out_dir, grouping, link_dict):
                 if str(dicom_tuple) in link_dict[LINK_LOG_FIELDS[-1]]:
                     link_dict[LINK_LOG_FIELDS[-1]][str(dicom_tuple)] += 1
                     print('mrn-accession-studyID-seriesID-sopID tuple has already been anonymized.')
-                    logger.info('mrn-accession-studyID-seriesID-sopID tuple has already been anonymized.')
+                    logger.warning('mrn-accession-studyID-seriesID-sopID tuple has already been anonymized.')
                 else:
                     try:
-                        write_dicom(ds, anon_values, out_dir, grouping)
+                        constructDicom.write_dicom(ds, anon_values, out_dir, grouping)
                         link_dict[LINK_LOG_FIELDS[-1]][str(dicom_tuple)] = 1
                     except Exception as error:
                         exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -152,16 +149,16 @@ def anonymize_dicoms(link_log_path, partition, out_dir, grouping, link_dict):
 
     # Save cache of already-visited patients.
     for i_iter in range(len(LINK_LOG_FIELDS)):
-         save_json(link_dict[LINK_LOG_FIELDS[i_iter]], os.path.join(link_log_path, "{}.json".format(LINK_LOG_FIELDS[i_iter])))
+         utils.save_json(link_dict[LINK_LOG_FIELDS[i_iter]], os.path.join(link_log_path, "{}.json".format(LINK_LOG_FIELDS[i_iter])))
 
     # Update partition.
-    save_json(partition, os.path.join(link_log_path, 'partition.json'))
+    utils.save_json(partition, os.path.join(link_log_path, 'partition.json'))
 
 
 if __name__ == "__main__":
     start_time = str(datetime.datetime.now())
 
-    create_dir(os.path.join(os.getcwd(), 'stdout'))
+    utils.make_dirs(os.path.join(os.getcwd(), 'stdout'))
     sys.stdout = open(os.path.join(os.getcwd(), 'stdout', 'stdout_{}'.format(''.join(start_time.split(':')))), 'w')
 
     # Parse command line arguments.
@@ -172,8 +169,8 @@ if __name__ == "__main__":
     group_by = args.group_by
 
     # Create link log and output directories, if they don't already exist.
-    create_dir(output_dir)
-    create_dir(link_log_dir)
+    utils.make_dirs(output_dir)
+    utils.make_dirs(link_log_dir)
 
     # Log at WARNING level.
     logger = logging.getLogger(__name__)
@@ -188,16 +185,16 @@ if __name__ == "__main__":
     logger.info(input_dir, output_dir, link_log_dir, group_by)
 
     # Load partition, if it exists.
-    try:
-        partition = load_json(os.path.join(link_log_dir, 'partition.json'))
+    partition = utils.load_json(os.path.join(link_log_dir, 'partition.json'))
+    if partition:
         print('Loading existing partition.')
         logger.info('Loading existing partition.')
-    except:
+    else:
         partition = {}
 
     # Load cache of cases already analyzed, otherwise instantiate new caches.
     link_dict = {link_log_field:
-                 load_link_log(logger, link_log_dir, "{}.json".format(link_log_field), "Loading existing {}.".format(link_log_field))
+                 utils.load_link_log(logger, link_log_dir, "{}.json".format(link_log_field), "Loading existing {}.".format(link_log_field))
                  for link_log_field in LINK_LOG_FIELDS}
 
     # Load and anonymize dicoms.
@@ -207,7 +204,7 @@ if __name__ == "__main__":
             partition = get_dicoms(input_dir)
             end_time_get_dicoms = time.time()
             print("--- Process get_dicoms took %s seconds to execute ---" % round((end_time_get_dicoms - start_time_get_dicoms), 2))
-            save_json(partition, os.path.join(link_log_dir, 'partition.json'))
+            utils.save_json(partition, os.path.join(link_log_dir, 'partition.json'))
 
         start_time_anonymize_dicoms = time.time()
         anonymize_dicoms(link_log_dir, partition, output_dir, group_by, link_dict)
