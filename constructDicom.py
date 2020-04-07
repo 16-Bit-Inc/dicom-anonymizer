@@ -52,40 +52,43 @@ def write_dicom(ods, anon_values, out_dir, grouping):
     ds.StudyTime = "000000"
     ds.PatientBirthTime = "000000.000000"
     ds.PatientBirthDate = "00000000"
-
-    ds.PatientAge = utils.calculate_age(ods.StudyDate, ods.PatientBirthDate) if "StudyDate" in ods and "PatientBirthDate" in ods else ""
+    ds.PatientAge = utils.calculate_age(ods.StudyDate, ods.PatientBirthDate) if ("StudyDate" in ods and "PatientBirthDate" in ods) else ""
     ds.PatientSex = ods.PatientSex if "PatientSex" in ods else ""
+
     ds.StudyDescription = ods.StudyDescription if "StudyDescription" in ods else ""
     ds.SeriesDescription = ods.SeriesDescription if "SeriesDescription" in ods else ""
-    ds.ViewPosition = ods.ViewPosition if "ViewPosition" in ods else ""
+    ds.Modality = ods.Modality if "Modality" in ods else ""
     ds.SeriesNumber = ods.SeriesNumber if "SeriesNumber" in ods else ""
     ds.InstanceNumber = ods.InstanceNumber if "InstanceNumber" in ods else ""
+
     ds.PlanarConfiguration = ods.PlanarConfiguration if "PlanarConfiguration" in ods else ""
+    ds.ViewPosition = ods.ViewPosition if "ViewPosition" in ods else ""
+    ds.PatientOrientation = ods.PatientOrientation if "PatientOrientation" in ods else ""
+
     ds.SamplesPerPixel = ods.SamplesPerPixel if "SamplesPerPixel" in ods else ""
     ds.PhotometricInterpretation = ods.PhotometricInterpretation if "PhotometricInterpretation" in ods else ""
-    ds.PatientOrientation = ods.PatientOrientation if "PatientOrientation" in ods else ""
     ds.PixelRepresentation = ods.PixelRepresentation if "PixelRepresentation" in ods else ""
+    ds.ImagerPixelSpacing = ods.ImagerPixelSpacing if "ImagerPixelSpacing" in ods else ""
     ds.HighBit = ods.HighBit if "HighBit" in ods else ""
     ds.BitsStored = ods.BitsStored if "BitsStored" in ods else ""
     ds.BitsAllocated = ods.BitsAllocated if "BitsAllocated" in ods else ""
     ds.Columns = ods.Columns if "Columns" in ods else ""
     ds.Rows = ods.Rows if "Rows" in ods else ""
-    ds.ImagerPixelSpacing = ods.ImagerPixelSpacing if "ImagerPixelSpacing" in ods else ""
 
     ds.SpecificCharacterSet = ods.SpecificCharacterSet if "SpecificCharacterSet" in ods else ""
-    ds.Modality = ods.Modality if "Modality" in ods else ""
     ds.SecondaryCaptureDeviceManufctur = 'Python 3.X'
     ds.PresentationLUTShape = ods.PresentationLUTShape if "PresentationLUTShape" in ods else ""
     ds.KVP = ods.KVP if "KVP" in ods else ""
     ds.XRayTubeCurrent = ods.XRayTubeCurrent if "XRayTubeCurrent" in ods else ""
     ds.ExposureTime = ods.ExposureTime if "ExposureTime" in ods else ""
     ds.Exposure = ods.Exposure if "Exposure" in ods else ""
+    ds.ExposureControlMode = ods.ExposureControlMode if "ExposureControlMode" in ods else ""
+    ds.RelativeXRayExposure = ods.RelativeXRayExposure if "RelativeXRayExposure" in ods else ""
     ds.FocalSpots = ods.FocalSpots if "FocalSpots" in ods else ""
     ds.AnodeTargetMaterial = ods.AnodeTargetMaterial if "AnodeTargetMaterial" in ods else ""
     ds.BodyPartThickness = ods.BodyPartThickness if "BodyPartThickness" in ods else ""
     ds.CompressionForce = ods.CompressionForce if "CompressionForce" in ods else ""
     ds.PaddleDescription = ods.PaddleDescription if "PaddleDescription" in ods else ""
-    ds.ExposureControlMode = ods.ExposureControlMode if "ExposureControlMode" in ods else ""
     ds.BurnedInAnnotation = ""
     ds.DistanceSourceToDetector = ods.DistanceSourceToDetector if "DistanceSourceToDetector" in ods else ""
     ds.DistanceSourceToPatient = ods.DistanceSourceToPatient if "DistanceSourceToPatient" in ods else ""
@@ -99,7 +102,7 @@ def write_dicom(ods, anon_values, out_dir, grouping):
     ds.EstimatedRadiographicMagnificationFactor = ods.EstimatedRadiographicMagnificationFactor if "EstimatedRadiographicMagnificationFactor" in ods else ""
     ds.DateOfLastDetectorCalibration = ods.DateOfLastDetectorCalibration if "DateOfLastDetectorCalibration" in ods else ""
 
-    filename = utils.clean_string("a" + str(anon_values['accession']) + "_st" + str(anon_values['studyID']) + '_m' + str(anon_values['mrn']) + "_se" + str(anon_values['seriesID']) + "_i" + str(anon_values['sopID']) + "_" + str(ds.SeriesNumber) + "_" + str(ds.InstanceNumber) + "_" + str(ds.Modality) + "_" + str(ds.ViewPosition) + ".dcm")
+    filename = utils.clean_string('m' + str(anon_values['mrn']) + '_a' + str(anon_values['accession']) + '_st' + str(anon_values['studyID']) + "_se" + str(anon_values['seriesID']) + "_i" + str(anon_values['sopID']) + "_" + str(ds.SeriesNumber) + "_" + str(ds.InstanceNumber) + "_" + str(ds.Modality) + "_" + str(ds.ViewPosition) + ".dcm")
 
     # Create study directory, if it doesn't already exist.
     if grouping == 'a':
