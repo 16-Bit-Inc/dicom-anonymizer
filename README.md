@@ -17,7 +17,7 @@ This can be done by entering `conda install -c conda-forge pydicom` in the comma
 4. There are several image handler packages which may or may not be needed depending on your dicom transfer syntaxes.
 These packages are imported by default. Only gdcm and jpeg_ls need to be installed manually (assuming Anaconda Distribution is being used).
 This can be done by running `conda install -c conda-forge gdcm` to install gdcm, and cloning the CharPyLs repository from https://github.com/Who8MyLunch/CharPyLS and running `pip3 install .` from inside the CharPyLs directory.
-See [info on data handlers](https://pydicom.github.io/pydicom/stable/image_data_handlers.html) for specifications on which handlers may be needed for your dicom files.
+See [info on data handlers](https://pydicom.github.io/pydicom/dev/old/image_data_handlers.html) for specifications on which handlers may be needed for your dicom files.
 
 Usage:
 ```

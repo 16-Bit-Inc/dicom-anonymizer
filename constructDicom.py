@@ -2,7 +2,7 @@ import os
 
 # Image handlers
 IMPORT_ERROR_MESSAGE = 'could not be imported. This may cause issues, depending on the transfer syntaxes of the dicom files.' \
-                       'See https://pydicom.github.io/pydicom/stable/image_data_handlers.html for details.'
+                       'See https://pydicom.github.io/pydicom/dev/old/image_data_handlers.html for details.'
 try:
     import numpy
     import numpy as np
